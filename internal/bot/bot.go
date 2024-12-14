@@ -16,7 +16,7 @@ var dg *discordgo.Session
 // StartBot initializes the discord session and starts the bot
 func StartBot() error {
 	// load env variables from .env file
-	err := godotenv.Load()
+	err := godotenv.Load("local.env")
 	if err != nil {
 		log.Println("[INFO] no .env file found. Proceeding with environment variables.")
 	}

@@ -9,6 +9,11 @@ import (
 
 // messageCreate is called whenever a new message is created in a channel
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+	// ignore empty messages
+	if strings.TrimSpace(m.Content) == "" {
+		return
+	}
+
 	// ignore messages created by the bot
 	if m.Author.ID == s.State.User.ID {
 		return
