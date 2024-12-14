@@ -1,0 +1,62 @@
+package bot
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/bwmarrin/discordgo"
+)
+
+// messageCreate is called whenever a new message is created in a channel
+func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+	// ignore messages created by the bot
+	if m.Author.ID == s.State.User.ID {
+		return
+	}
+
+	// check if the message starts withq the bot prefix
+	if !strings.HasPrefix(m.Content, DISCORD_BOT_PREFIX) {
+		return
+	}
+
+	// split the message into command and arguments
+	args := strings.Fields(m.Content)
+	if len(args) == 0 {
+		return
+	}
+
+	command := strings.ToLower(args[0][len(DISCORD_BOT_PREFIX):]) // remove the prefix from the command and convert to lowercase
+
+	switch command {
+	case string(COMMAND_PING):
+		handlePingCommand(s, m)
+	case string(COMMAND_HELP):
+		handleHelpCommand(s, m)
+	default:
+		handleUnknownCommand(s, m)
+	}
+}
+
+// handlePingCommand responds to the ping command
+func handlePingCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
+	_, err := s.ChannelMessageSend(m.ChannelID, "Pong!")
+	if err != nil {
+		fmt.Println("[ERROR] error sending message: ", err)
+	}
+}
+
+// handleHelpCommand responds to the help command
+func handleHelpCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
+	_, err := s.ChannelMessageSend(m.ChannelID, "Available commands:\n`!ping` - Responds with 'Pong!'\n`!help` - Displays this help message")
+	if err != nil {
+		fmt.Println("[ERROR] error sending message: ", err)
+	}
+}
+
+// handleUnknownCommand responds to unknown commands
+func handleUnknownCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
+	_, err := s.ChannelMessageSend(m.ChannelID, "Unknown command. Type `!help` for a list of available commands.")
+	if err != nil {
+		fmt.Println("[ERROR] error sending message: ", err)
+	}
+}

@@ -1,0 +1,7 @@
+/bin/
+/discord-jam-bot
+
+*.env
+
+# go modules
+/go.sum
