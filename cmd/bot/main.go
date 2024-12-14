@@ -1,9 +1,8 @@
 package main
 
 import (
+	"jam-bot/internal/bot"
 	"log"
-
-	"github.com/pdd27673/jam-bot/internal/bot"
 )
 
 func main() {
