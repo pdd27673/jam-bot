@@ -13,6 +13,7 @@ func (s *Service) StartAuthServer(port int) error {
 func (s *Service) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state") // Discord user ID
 	code := r.URL.Query().Get("code")
+	// channelID := r.URL.Query().Get("channel_id") // Optional: can pass ChannelID if needed
 
 	if state == "" || code == "" {
 		http.Error(w, "Invalid callback parameters", http.StatusBadRequest)

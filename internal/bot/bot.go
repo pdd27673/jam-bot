@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"fmt"
 	"jam-bot/internal/commands"
 	"jam-bot/internal/config"
@@ -61,6 +62,18 @@ func StartBot() error {
 	cmdRegistry.Register(commands.NewSpotifyStatusCommand(spotifyService))
 	cmdRegistry.Register(commands.NewJoinCommand(spotifyService))
 	cmdRegistry.Register(commands.NewLeaveCommand(spotifyService))
+	cmdRegistry.Register(commands.NewAddCommand(spotifyService))
+	cmdRegistry.Register(commands.NewQueueCommand(spotifyService))
+	cmdRegistry.Register(commands.NewUsersCommand(spotifyService))
+	cmdRegistry.Register(commands.NewPlayCommand(spotifyService))
+	cmdRegistry.Register(commands.NewPauseCommand(spotifyService))
+	cmdRegistry.Register(commands.NewRemoveCommand(spotifyService))
+
+	// Load and validate existing sessions
+	err = loadAndValidateSessions(spotifyService)
+	if err != nil {
+		log.Printf("[ERROR] Failed to load and validate sessions: %v", err)
+	}
 
 	// Add message handler
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -88,5 +101,45 @@ func StartBot() error {
 		return fmt.Errorf("[ERROR] error closing connection to Discord: %s", err)
 	}
 
+	return nil
+}
+
+// loadAndValidateSessions loads all existing sessions and validates participant authentication
+func loadAndValidateSessions(spotifyService *spotify.Service) error {
+	ctx := context.Background()
+	sessions, err := spotifyService.LoadAllSessions(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to load sessions: %w", err)
+	}
+
+	for _, session := range sessions {
+		channelID := session.ChannelID
+		for _, userID := range session.Participants {
+			isAuth, err := spotifyService.IsAuthenticated(ctx, userID)
+			if err != nil {
+				log.Printf("[ERROR] Failed to check authentication for user %s: %v", userID, err)
+				continue
+			}
+
+			if !isAuth {
+				// Remove user from session
+				err = spotifyService.RemoveUserFromSession(ctx, channelID, userID)
+				if err != nil {
+					log.Printf("[ERROR] Failed to remove unauthenticated user %s from session: %v", userID, err)
+					continue
+				}
+
+				// Notify the user via DM
+				err = spotifyService.SendDM(userID, "❌ You have been removed from the jam session because you are no longer authenticated with Spotify. Please re-authenticate using `!auth` if you wish to join again.")
+				if err != nil {
+					log.Printf("[ERROR] Failed to send DM to user %s: %v", userID, err)
+				}
+
+				log.Printf("[INFO] Removed unauthenticated user %s from channel %s session.", userID, channelID)
+			}
+		}
+	}
+
+	log.Println("[INFO] All sessions loaded and validated successfully.")
 	return nil
 }

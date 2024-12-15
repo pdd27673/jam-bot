@@ -26,8 +26,16 @@ func (c *JoinCommand) Description() string {
 
 func (c *JoinCommand) Execute(s *discordgo.Session, m *discordgo.MessageCreate, args []string) error {
 	ctx := context.Background()
-	guildID := m.GuildID
+	channelID := m.ChannelID
 	userID := m.Author.ID
+
+	if channelID == "" {
+		_, err := s.ChannelMessageSend(m.ChannelID, "❌ This command can only be used within a channel.")
+		if err != nil {
+			return fmt.Errorf("failed to send message: %w", err)
+		}
+		return nil
+	}
 
 	// Check if the user is authenticated
 	isAuth, err := c.spotifyService.IsAuthenticated(ctx, userID)
@@ -51,7 +59,7 @@ func (c *JoinCommand) Execute(s *discordgo.Session, m *discordgo.MessageCreate, 
 	}
 
 	// Add the user to the session
-	err = c.spotifyService.AddUserToSession(ctx, guildID, userID)
+	err = c.spotifyService.AddUserToSession(ctx, channelID, userID)
 	if err != nil {
 		// If user is already in session, inform them
 		if err.Error() == "user is already in the session" {

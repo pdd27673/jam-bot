@@ -26,11 +26,11 @@ func (c *LeaveCommand) Description() string {
 
 func (c *LeaveCommand) Execute(s *discordgo.Session, m *discordgo.MessageCreate, args []string) error {
 	ctx := context.Background()
-	guildID := m.GuildID
+	channelID := m.ChannelID
 	userID := m.Author.ID
 
 	// Remove the user from the session
-	err := c.spotifyService.RemoveUserFromSession(ctx, guildID, userID)
+	err := c.spotifyService.RemoveUserFromSession(ctx, channelID, userID)
 	if err != nil {
 		return fmt.Errorf("failed to remove user from session: %w", err)
 	}
