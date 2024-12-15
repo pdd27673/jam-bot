@@ -75,7 +75,7 @@ func NewSpotifyService(cfg *config.Config, sendDM func(discordUserID, message st
 }
 
 // StartAuthServer starts the authentication server on the configured port
-func (s *Service) StartAuthServer(ctx context.Context) error {
+func (s *Service) StartAuthServer() error {
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)

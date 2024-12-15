@@ -45,7 +45,7 @@ func StartBot() error {
 
 	// Start auth server in a goroutine
 	go func() {
-		if err := spotifyService.StartAuthServer(context.Background()); err != nil {
+		if err := spotifyService.StartAuthServer(); err != nil {
 			log.Fatalf("[ERROR] Auth server failed: %v", err)
 		}
 	}()
