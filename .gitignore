@@ -1,7 +1,9 @@
 /bin/
 /discord-jam-bot
-
+.vscode/
 *.env
+
+TODO.md
 
 # go modules
 # /go.sum

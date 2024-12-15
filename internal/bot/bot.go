@@ -8,10 +8,10 @@ import (
 	"syscall"
 
 	"jam-bot/internal/commands"
+	"jam-bot/internal/config"
 	"jam-bot/internal/utils"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/joho/godotenv"
 )
 
 var dg *discordgo.Session
@@ -19,19 +19,18 @@ var cmdRegistry *commands.Registry
 
 // StartBot initializes the discord session and starts the bot
 func StartBot() error {
-	err := godotenv.Load("local.env")
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Println("[INFO] no .env file found. Proceeding with environment variables.")
+		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	token := os.Getenv("DISCORD_TOKEN")
-	if token == "" {
-		return fmt.Errorf("[ERROR] DISCORD_TOKEN not found in environment variables")
+	if cfg.DiscordToken == "" {
+		return fmt.Errorf("discord token not provided")
 	}
 
-	dg, err = discordgo.New("Bot " + token)
+	dg, err = discordgo.New("Bot " + cfg.DiscordToken)
 	if err != nil {
-		return fmt.Errorf("[ERROR] error creating Discord session: %s", err)
+		return fmt.Errorf("error creating Discord session: %w", err)
 	}
 
 	// Initialize and register commands
@@ -50,7 +49,7 @@ func StartBot() error {
 	// Open a websocket connection to Discord and begin listening
 	err = dg.Open()
 	if err != nil {
-		return fmt.Errorf("[ERROR] error opening connection to Discord: %s", err)
+		return fmt.Errorf("error opening connection to Discord: %s", err)
 	}
 	log.Println("[INFO] bot is now running. Press CTRL+C to exit.")
 
