@@ -452,19 +452,17 @@ func (s *Service) RemoveSongFromQueue(ctx context.Context, channelID string, ind
 
 	removedSong := session.Queue[index]
 	session.Queue = append(session.Queue[:index], session.Queue[index+1:]...)
+
+	// If the removed song is currently playing, reset playback state
+	if session.Playback.IsPlaying && session.Playback.CurrentSong.URI == removedSong.URI {
+		session.Playback.IsPlaying = false
+		session.Playback.PositionMs = 0       // Reset position
+		session.Playback.CurrentSong = Song{} // Clear current song
+	}
+
 	err = s.SaveSession(ctx, session)
 	if err != nil {
 		return fmt.Errorf("failed to save session: %w", err)
-	}
-
-	// Optionally, handle if the removed song is currently playing
-	if session.Playback.IsPlaying && session.Playback.CurrentSong.URI == removedSong.URI {
-		// Implement logic to stop playback or move to the next song
-		session.Playback.IsPlaying = false
-		err = s.SaveSession(ctx, session)
-		if err != nil {
-			return fmt.Errorf("failed to update playback state: %w", err)
-		}
 	}
 
 	return nil
@@ -506,13 +504,14 @@ func (s *Service) StartPlayback(ctx context.Context, channelID string) error {
 
 	currentSong := session.Queue[0]
 
-	// Calculate the current playback position
-	if session.Playback.IsPlaying {
+	// Reset position if starting a new song
+	if session.Playback.CurrentSong.URI != currentSong.URI {
+		session.Playback.PositionMs = 0
+		session.Playback.CurrentSong = currentSong
+	} else if session.Playback.IsPlaying {
+		// Only update position if it's the same song and was playing
 		elapsed := time.Now().Unix() - session.Playback.LastUpdatedAt
-		session.Playback.PositionMs += int(elapsed * 1000) // Convert seconds to milliseconds
-
-		// Optional: Handle if the song has ended based on duration
-		// (Requires song duration information)
+		session.Playback.PositionMs += int(elapsed * 1000)
 	}
 
 	// Iterate over each participant and start playback
@@ -580,6 +579,7 @@ func (s *Service) StartPlayback(ctx context.Context, channelID string) error {
 	// Update the session's playback state
 	session.Playback.IsPlaying = true
 	session.Playback.LastUpdatedAt = time.Now().Unix()
+	session.Playback.CurrentSong = currentSong
 
 	err = s.SaveSession(ctx, session)
 	if err != nil {
