@@ -7,3 +7,5 @@ TODO.md
 
 # go modules
 # /go.sum
+
+*.rdb
