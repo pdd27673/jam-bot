@@ -14,6 +14,10 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// Session Key Prefix
+const sessionKeyPrefix = "jam_session:"
+
+// Service represents the Spotify service
 type Service struct {
 	config      *oauth2.Config
 	redisClient *redis.Client
@@ -161,4 +165,121 @@ func (s *Service) IsAuthenticated(ctx context.Context, discordUserID string) (bo
 	}
 
 	return true, nil
+}
+
+// CreateSession creates a new jam session for a guild
+func (s *Service) CreateSession(ctx context.Context, guildID string) error {
+	session := Session{
+		GuildID:      guildID,
+		Participants: []string{},
+		Queue:        []Song{},
+		Playback: PlaybackState{
+			CurrentSong:   Song{},
+			PositionMs:    0,
+			IsPlaying:     false,
+			LastUpdatedAt: time.Now().Unix(),
+		},
+	}
+
+	sessionData, err := json.Marshal(session)
+	if err != nil {
+		return fmt.Errorf("failed to marshal session: %w", err)
+	}
+
+	key := fmt.Sprintf("%s%s", sessionKeyPrefix, guildID)
+	return s.redisClient.Set(ctx, key, sessionData, 0).Err()
+}
+
+// LoadSession loads a jam session from Redis
+func (s *Service) LoadSession(ctx context.Context, guildID string) (*Session, error) {
+	key := fmt.Sprintf("%s%s", sessionKeyPrefix, guildID)
+	sessionData, err := s.redisClient.Get(ctx, key).Result()
+	if err == redis.Nil {
+		return nil, fmt.Errorf("no active session for guild %s", guildID)
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to get session from Redis: %w", err)
+	}
+
+	var session Session
+	err = json.Unmarshal([]byte(sessionData), &session)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal session: %w", err)
+	}
+
+	return &session, nil
+}
+
+// SaveSession saves a jam session to Redis
+func (s *Service) SaveSession(ctx context.Context, session *Session) error {
+	sessionData, err := json.Marshal(session)
+	if err != nil {
+		return fmt.Errorf("failed to marshal session: %w", err)
+	}
+
+	key := fmt.Sprintf("%s%s", sessionKeyPrefix, session.GuildID)
+	return s.redisClient.Set(ctx, key, sessionData, 0).Err()
+}
+
+// DeleteSession deletes a jam session from Redis
+func (s *Service) DeleteSession(ctx context.Context, guildID string) error {
+	key := fmt.Sprintf("%s%s", sessionKeyPrefix, guildID)
+	return s.redisClient.Del(ctx, key).Err()
+}
+
+// AddUserToSession adds a user to the jam session for a specific guild
+func (s *Service) AddUserToSession(ctx context.Context, guildID, userID string) error {
+	session, err := s.LoadSession(ctx, guildID)
+	if err != nil {
+		// If no session exists, create one
+		if err.Error() == fmt.Sprintf("no active session for guild %s", guildID) {
+			err = s.CreateSession(ctx, guildID)
+			if err != nil {
+				return fmt.Errorf("failed to create session: %w", err)
+			}
+			session, err = s.LoadSession(ctx, guildID)
+			if err != nil {
+				return fmt.Errorf("failed to load session after creation: %w", err)
+			}
+		} else {
+			return err
+		}
+	}
+
+	// Check if user is already in session
+	for _, id := range session.Participants {
+		if id == userID {
+			return fmt.Errorf("user is already in the session")
+		}
+	}
+
+	session.Participants = append(session.Participants, userID)
+	return s.SaveSession(ctx, session)
+}
+
+// RemoveUserFromSession removes a user from the jam session for a specific guild
+func (s *Service) RemoveUserFromSession(ctx context.Context, guildID, userID string) error {
+	session, err := s.LoadSession(ctx, guildID)
+	if err != nil {
+		return err
+	}
+
+	// Find and remove the user from participants
+	for i, id := range session.Participants {
+		if id == userID {
+			session.Participants = append(session.Participants[:i], session.Participants[i+1:]...)
+			break
+		}
+	}
+
+	return s.SaveSession(ctx, session)
+}
+
+// GetSessionParticipants retrieves all users in the jam session for a specific guild
+func (s *Service) GetSessionParticipants(ctx context.Context, guildID string) ([]string, error) {
+	session, err := s.LoadSession(ctx, guildID)
+	if err != nil {
+		return nil, err
+	}
+
+	return session.Participants, nil
 }

@@ -59,6 +59,8 @@ func StartBot() error {
 	cmdRegistry.Register(commands.NewHelpCommand(cmdRegistry))
 	cmdRegistry.Register(commands.NewSpotifyAuthCommand(spotifyService))
 	cmdRegistry.Register(commands.NewSpotifyStatusCommand(spotifyService))
+	cmdRegistry.Register(commands.NewJoinCommand(spotifyService))
+	cmdRegistry.Register(commands.NewLeaveCommand(spotifyService))
 
 	// Add message handler
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
