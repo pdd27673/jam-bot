@@ -1,181 +1,146 @@
 # Spotify Jam Discord Bot
 
+A Discord bot that enables collaborative music sessions using Spotify. Users can join sessions, manage a shared queue, and control playback synchronized across their Spotify accounts.
 
-I have this code:
+## Features
 
-```
-package main
+- **Session Management**: Create and manage music sessions that multiple users can join.
+- **Shared Queue**: Add songs to a shared queue that plays for all session members.
+- **Playback Control**: Play, pause, and skip songs in the session.
+- **Voting System**: Vote to skip the current song or add songs to the queue.
+- **Spotify Integration**: Authenticate with Spotify to control playback on your account.
 
-import (
-	"jam-bot/internal/bot"
-	"log"
-)
+## Commands
 
-func main() {
-	// init bot
-	err := bot.StartBot()
-	if err != nil {
-		log.Fatalf("[ERROR] error starting the bot: %s", err)
-	}
-}
+- `!join` - Join the current music session.
+- `!leave` - Leave the current session.
+- `!play` - Resume playback.
+- `!pause` - Pause playback.
+- `!add [song name]` - Add a song to the queue.
+- `!skip` - Skip the current song.
+- `!queue` - Display the current song queue.
+- `!vote_skip` - Initiate a vote to skip the current song.
 
-```
+## Installation
 
-```
-package bot
+### Prerequisites
 
-import (
-	"fmt"
-	"log"
-	"os"
-	"os/signal"
-	"syscall"
+- **Go 1.22 or higher** installed on your machine.
+- **Discord Bot Token**:
+  - Create an application on the [Discord Developer Portal](https://discord.com/developers/applications).
+  - Add a bot to your application and copy the bot token.
+- **Spotify Developer Credentials**:
+  - Create an app on the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/applications).
+  - Note down the Client ID and Client Secret.
+  - Set the Redirect URI to `http://localhost:8080/callback` or your desired URI.
 
-	"github.com/bwmarrin/discordgo"
-	"github.com/joho/godotenv"
-)
+### Steps
 
-var dg *discordgo.Session
+1. **Clone the Repository**:
 
-// StartBot initializes the discord session and starts the bot
-func StartBot() error {
-	// load env variables from .env file
-	err := godotenv.Load("local.env")
-	if err != nil {
-		log.Println("[INFO] no .env file found. Proceeding with environment variables.")
-	}
+   ```bash
+   git clone https://github.com/yourusername/jam-bot.git
+   cd jam-bot
+   ```
 
-	token := os.Getenv("DISCORD_TOKEN")
-	if token == "" {
-		return fmt.Errorf("[ERROR] DISCORD_TOKEN not found in environment variables")
-	}
+2. **Set Up Environment Variables**:
 
-	// create a new discord session
-	dg, err = discordgo.New("Bot " + token)
-	if err != nil {
-		return fmt.Errorf("[ERROR] error creating Discord session: %s", err)
-	}
+   Create a `.env` file in the root directory and add your credentials:
 
-	// register messageCreate as a callback for the messageCreate events
-	dg.AddHandler(messageCreate)
+   ```env
+   DISCORD_TOKEN=your_discord_bot_token
+   SPOTIFY_CLIENT_ID=your_spotify_client_id
+   SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+   SPOTIFY_REDIRECT_URI=your_redirect_uri
+   ```
 
-	// open a websocket connection to Discord and begin listening
-	err = dg.Open()
-	if err != nil {
-		return fmt.Errorf("[ERROR] error opening connection to Discord: %s", err)
-	}
-	log.Println("[INFO] bot is now running. Press CTRL+C to exit.")
+3. **Install Dependencies**:
 
-	// wait until ctrl+c or other termination signal is received
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
-	<-sc
+   ```bash
+   go mod download
+   ```
 
-	// cleanly close down the Discord session
-	err = dg.Close()
-	if err != nil {
-		return fmt.Errorf("[ERROR] error closing connection to Discord: %s", err)
-	}
+4. **Build the Bot**:
 
-	return nil
-}
+   ```bash
+   go build -o discord-bot .
+   ```
 
-```
+5. **Run the Bot**:
 
-```
-package bot
+   ```bash
+   ./discord-bot
+   ```
 
-import (
-	"fmt"
-	"strings"
+6. **Invite the Bot to Your Server**:
 
-	"jam-bot/internal/utils" // Add this import
+   - Generate an OAuth2 URL with the necessary permissions from the Discord Developer Portal.
+   - Use the URL to invite the bot to your Discord server.
 
-	"github.com/bwmarrin/discordgo"
-)
+## Usage
 
-// messageCreate is called whenever a new message is created in a channel
-func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	// ignore empty messages
-	if strings.TrimSpace(m.Content) == "" {
-		return
-	}
+- **Start a Session**:
+  - Use `!start_session` (if implemented) to initiate a music session.
+  
+- **Join a Session**:
 
-	// ignore messages created by the bot
-	if m.Author.ID == s.State.User.ID {
-		return
-	}
+  - Type `!join` in a channel where the bot is active.
+  - Authenticate with Spotify when prompted.
 
-	// check if the message starts withq the bot prefix
-	if !strings.HasPrefix(m.Content, utils.DISCORD_BOT_PREFIX) {
-		return
-	}
+- **Control Playback**:
 
-	// split the message into command and arguments
-	args := strings.Fields(m.Content)
-	if len(args) == 0 {
-		return
-	}
+  - Use `!play` and `!pause` to control playback.
+  - Add songs with `!add [song name]`.
 
-	command := strings.ToLower(args[0][len(utils.DISCORD_BOT_PREFIX):]) // remove the prefix from the command and convert to lowercase
+- **Manage the Queue**:
 
-	switch command {
-	case string(utils.COMMAND_PING):
-		handlePingCommand(s, m)
-	case string(utils.COMMAND_HELP):
-		handleHelpCommand(s, m)
-	default:
-		handleUnknownCommand(s, m)
-	}
-}
+  - View the queue with `!queue`.
+  - Vote to skip songs with `!vote_skip`.
 
-// handlePingCommand responds to the ping command
-func handlePingCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
-	_, err := s.ChannelMessageSend(m.ChannelID, "Pong!")
-	if err != nil {
-		fmt.Println("[ERROR] error sending message: ", err)
-	}
-}
+## Development Plan Overview
 
-// handleHelpCommand responds to the help command
-func handleHelpCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
-	_, err := s.ChannelMessageSend(m.ChannelID, "Available commands:\n`!ping` - Responds with 'Pong!'\n`!help` - Displays this help message")
-	if err != nil {
-		fmt.Println("[ERROR] error sending message: ", err)
-	}
-}
+The bot is designed with a modular structure for scalability and maintainability. Key components include:
 
-// handleUnknownCommand responds to unknown commands
-func handleUnknownCommand(s *discordgo.Session, m *discordgo.MessageCreate) {
-	_, err := s.ChannelMessageSend(m.ChannelID, "Unknown command. Type `!help` for a list of available commands.")
-	if err != nil {
-		fmt.Println("[ERROR] error sending message: ", err)
-	}
-}
+- **Command Handling**: Modular commands with a registry pattern for easy addition of new commands.
+- **Spotify Integration**: Handles authentication and communication with the Spotify API.
+- **Session Management**: Manages user sessions and synchronization of playback.
+- **Queue Management**: Handles song queues and playback order.
+- **Voting System**: Implements collaborative decision-making features like skipping songs.
 
-```
+## Contributing
 
-here's a list of enhancements i would like to do:
-Modular Command Handling
+Contributions are welcome! Please follow these steps:
 
-Implement a command router
-Support dynamic command loading
-Enhanced Logging and Monitoring
+1. **Fork the Repository**:
 
-Integrate structured logging
-Set up monitoring tools and metrics
-Robust Error Handling
+   ```bash
+   git fork https://github.com/yourusername/jam-bot.git
+   ```
 
-Centralized error handler
-Recovery mechanisms and retry logic
-Configuration Management
+2. **Create a Feature Branch**:
 
-Use configuration files
-Manage environment variables securely
-Dependency Injection
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
 
-Implement DI for better testability and decoupling
-Database Abstraction
+3. **Commit Your Changes**:
 
-Create an abstraction layer
-Implement migration tools
+   ```bash
+   git commit -am 'Add new feature'
+   ```
+
+4. **Push to the Branch**:
+
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+5. **Open a Pull Request**.
+
+## License
+
+This project is open-source and available under the MIT License.
+
+## Contact
+
+For questions or support, please open an issue on the [GitHub repository](https://github.com/pdd27673/jam-bot/issues).
