@@ -1,1 +1,4 @@
 BotPrefix: "!"
+RedisAddr: "localhost:6379"
+RedisPassword: ""
+RedisDB: 0
