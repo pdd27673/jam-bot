@@ -586,8 +586,8 @@ func (s *Service) StartPlayback(ctx context.Context, channelID string) error {
 		return fmt.Errorf("failed to save session: %w", err)
 	}
 
-	quit := make(chan struct{})
-	s.StartSyncTicker(channelID, 10*time.Second, quit)
+	// quit := make(chan struct{})
+	// s.StartSyncTicker(channelID, 10*time.Second, quit)
 
 	return nil
 }
