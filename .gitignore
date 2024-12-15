@@ -4,4 +4,4 @@
 *.env
 
 # go modules
-/go.sum
+# /go.sum
