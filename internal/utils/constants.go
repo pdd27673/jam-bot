@@ -1,4 +1,4 @@
-package bot
+package utils
 
 // command represents a bot comamnd=
 type Command string

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"jam-bot/internal/utils" // Add this import
+
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -20,7 +22,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	// check if the message starts withq the bot prefix
-	if !strings.HasPrefix(m.Content, DISCORD_BOT_PREFIX) {
+	if !strings.HasPrefix(m.Content, utils.DISCORD_BOT_PREFIX) {
 		return
 	}
 
@@ -30,12 +32,12 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	command := strings.ToLower(args[0][len(DISCORD_BOT_PREFIX):]) // remove the prefix from the command and convert to lowercase
+	command := strings.ToLower(args[0][len(utils.DISCORD_BOT_PREFIX):]) // remove the prefix from the command and convert to lowercase
 
 	switch command {
-	case string(COMMAND_PING):
+	case string(utils.COMMAND_PING):
 		handlePingCommand(s, m)
-	case string(COMMAND_HELP):
+	case string(utils.COMMAND_HELP):
 		handleHelpCommand(s, m)
 	default:
 		handleUnknownCommand(s, m)
