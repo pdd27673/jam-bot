@@ -48,47 +48,76 @@ type Service struct {
 }
 
 // NewSpotifyService initializes the Spotify service with Redis and SendDM function
-func NewSpotifyService(cfg *config.Config, sendDM func(string, string) error) *Service {
-	oauthConfig := &oauth2.Config{
+func NewSpotifyService(cfg *config.Config, sendDM func(discordUserID, message string) error) *Service {
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     cfg.RedisAddr,
+		Password: cfg.RedisPassword,
+		DB:       cfg.RedisDB,
+	})
+
+	// Initialize OAuth2 config
+	oauthCfg := &oauth2.Config{
 		ClientID:     cfg.SpotifyClientID,
 		ClientSecret: cfg.SpotifyClientSecret,
 		RedirectURL:  cfg.SpotifyRedirectURI,
-		Scopes: []string{
-			"user-read-playback-state",
-			"user-modify-playback-state",
-			"user-read-currently-playing",
-			"streaming",
-			"app-remote-control",
-		},
+		Scopes:       []string{"user-read-playback-state", "user-modify-playback-state", "user-read-currently-playing"},
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  "https://accounts.spotify.com/authorize",
 			TokenURL: "https://accounts.spotify.com/api/token",
 		},
 	}
 
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     cfg.RedisAddr,
-		Password: cfg.RedisPassword,
-		DB:       cfg.RedisDB,
-	})
-
-	// Test Redis connection
-	ctx := context.Background()
-	if err := redisClient.Ping(ctx).Err(); err != nil {
-		log.Fatalf("[ERROR] Unable to connect to Redis: %v", err)
-	}
-
-	log.Println("[INFO] Connected to Redis successfully")
-
 	return &Service{
-		config:      oauthConfig,
-		redisClient: redisClient,
-		SendDM:      sendDM, // Assign SendDM function
+		config:      oauthCfg,
+		redisClient: rdb,
+		SendDM:      sendDM,
 	}
 }
 
+// StartAuthServer starts the authentication server on the configured port
+func (s *Service) StartAuthServer(ctx context.Context) error {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	return s.StartAuthServerWithPort(cfg.Port)
+}
+
+// StartAuthServerWithPort starts the auth server on a specified port
+func (s *Service) StartAuthServerWithPort(port int) error {
+	http.HandleFunc("/callback", s.callbackHandler)
+	server := &http.Server{
+		Addr: fmt.Sprintf(":%d", port),
+	}
+
+	log.Printf("[INFO] Starting auth server on port %d\n", port)
+	return server.ListenAndServe()
+}
+
+// callbackHandler remains unchanged
+func (s *Service) callbackHandler(w http.ResponseWriter, r *http.Request) {
+	state := r.URL.Query().Get("state") // Discord user ID
+	code := r.URL.Query().Get("code")
+	// channelID := r.URL.Query().Get("channel_id") // Optional: can pass ChannelID if needed
+
+	if state == "" || code == "" {
+		http.Error(w, "Invalid callback parameters", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.HandleCallback(r.Context(), state, code); err != nil {
+		http.Error(w, "Authentication failed", http.StatusInternalServerError)
+		return
+	}
+
+	// Notify user of successful authentication
+	fmt.Fprintf(w, "<script>window.close()</script>")
+}
+
 // GetAuthURL returns the Spotify OAuth2 URL for a given Discord user (state is DiscordUserID)
-func (s *Service) GetAuthURL(state string) string {
+func (s *Service) GetAuthURL(discordUserID string) string {
+	state := discordUserID
 	return s.config.AuthCodeURL(state, oauth2.AccessTypeOffline)
 }
 

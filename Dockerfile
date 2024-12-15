@@ -1,6 +1,12 @@
 # use official Golang image as the base
 FROM golang:1.22-alpine
 
+# # Make a directory for the app
+# RUN mkdir /app
+
+# # Copy the go files into the app directory
+# COPY ./**/*.go /app
+
 # Set the Current Working Directory inside the container
 WORKDIR /app
 
@@ -12,6 +18,8 @@ RUN go mod download
 
 # Copy the source from the current directory to the Working Directory inside the container
 COPY . .
+
+RUN ls -la .
 
 # Build the Go app
 RUN go build -o discord-bot .

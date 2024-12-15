@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
@@ -44,8 +45,8 @@ func StartBot() error {
 
 	// Start auth server in a goroutine
 	go func() {
-		if err := spotifyService.StartAuthServer(8080); err != nil {
-			log.Printf("[ERROR] Auth server failed: %v", err)
+		if err := spotifyService.StartAuthServer(context.Background()); err != nil {
+			log.Fatalf("[ERROR] Auth server failed: %v", err)
 		}
 	}()
 
@@ -72,21 +73,49 @@ func StartBot() error {
 	// Load and validate existing sessions
 	err = loadAndValidateSessions(spotifyService)
 	if err != nil {
-		log.Printf("[ERROR] Failed to load and validate sessions: %v", err)
+		return fmt.Errorf("failed to load and validate sessions: %w", err)
 	}
 
 	// Add message handler
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
-		err := cmdRegistry.ExecuteCommand(s, m, cfg.BotPrefix)
+		// Ignore messages from the bot itself
+		if m.Author.ID == s.State.User.ID {
+			return
+		}
+
+		// Check if the message starts with the bot prefix
+		if !strings.HasPrefix(m.Content, cfg.BotPrefix) {
+			return
+		}
+
+		// Parse the command and arguments
+		args := strings.Fields(m.Content[len(cfg.BotPrefix):])
+		if len(args) == 0 {
+			return
+		}
+		cmdName := strings.ToLower(args[0])
+		cmdArgs := args[1:]
+
+		// Find and execute the command
+		cmd, exists := cmdRegistry.Get(cmdName)
+		if exists != nil {
+			return
+		}
+
+		err := cmd.Execute(s, m, cmdArgs)
 		if err != nil {
-			fmt.Println("[ERROR]", err)
+			log.Printf("[ERROR] Command execution failed: %v", err)
+			_, sendErr := s.ChannelMessageSend(m.ChannelID, "❌ An error occurred while executing the command.")
+			if sendErr != nil {
+				log.Printf("[ERROR] Failed to send error message: %v", sendErr)
+			}
 		}
 	})
 
 	// Open a websocket connection to Discord and begin listening
 	err = dg.Open()
 	if err != nil {
-		return fmt.Errorf("error opening connection to Discord: %w", err)
+		return fmt.Errorf("error opening Discord session: %w", err)
 	}
 	log.Println("[INFO] bot is now running. Press CTRL+C to exit.")
 
@@ -98,9 +127,10 @@ func StartBot() error {
 	// Cleanly close down the Discord session
 	err = dg.Close()
 	if err != nil {
-		return fmt.Errorf("[ERROR] error closing connection to Discord: %s", err)
+		return fmt.Errorf("error closing Discord session: %w", err)
 	}
 
+	log.Println("[INFO] bot has been shut down gracefully.")
 	return nil
 }
 
@@ -113,29 +143,19 @@ func loadAndValidateSessions(spotifyService *spotify.Service) error {
 	}
 
 	for _, session := range sessions {
-		channelID := session.ChannelID
 		for _, userID := range session.Participants {
 			isAuth, err := spotifyService.IsAuthenticated(ctx, userID)
 			if err != nil {
-				log.Printf("[ERROR] Failed to check authentication for user %s: %v", userID, err)
+				log.Printf("[WARN] Failed to check authentication for user %s: %v", userID, err)
 				continue
 			}
-
 			if !isAuth {
-				// Remove user from session
-				err = spotifyService.RemoveUserFromSession(ctx, channelID, userID)
+				err := spotifyService.RemoveUserFromSession(ctx, session.ChannelID, userID)
 				if err != nil {
-					log.Printf("[ERROR] Failed to remove unauthenticated user %s from session: %v", userID, err)
-					continue
+					log.Printf("[WARN] Failed to remove unauthenticated user %s from session %s: %v", userID, session.ChannelID, err)
+				} else {
+					log.Printf("[INFO] Removed unauthenticated user %s from session %s", userID, session.ChannelID)
 				}
-
-				// Notify the user via DM
-				err = spotifyService.SendDM(userID, "❌ You have been removed from the jam session because you are no longer authenticated with Spotify. Please re-authenticate using `!auth` if you wish to join again.")
-				if err != nil {
-					log.Printf("[ERROR] Failed to send DM to user %s: %v", userID, err)
-				}
-
-				log.Printf("[INFO] Removed unauthenticated user %s from channel %s session.", userID, channelID)
 			}
 		}
 	}
