@@ -9,6 +9,7 @@ import (
 
 	"jam-bot/internal/commands"
 	"jam-bot/internal/config"
+	"jam-bot/internal/spotify"
 	"jam-bot/internal/utils"
 
 	"github.com/bwmarrin/discordgo"
@@ -33,10 +34,24 @@ func StartBot() error {
 		return fmt.Errorf("error creating Discord session: %w", err)
 	}
 
+	spotifyService := spotify.NewSpotifyService(
+		cfg.SpotifyClientID,
+		cfg.SpotifyClientSecret,
+		cfg.SpotifyRedirectURI,
+	)
+
+	// start auth server in a separate goroutine
+	go func() {
+		if err := spotifyService.StartAuthServer(8080); err != nil {
+			log.Printf("[ERROR] failed to start auth server: %s", err)
+		}
+	}()
+
 	// Initialize and register commands
 	cmdRegistry = commands.NewRegistry()
 	cmdRegistry.Register(&commands.PingCommand{})
 	cmdRegistry.Register(commands.NewHelpCommand(cmdRegistry))
+	cmdRegistry.Register(commands.NewSpotifyAuthCommand(spotifyService))
 
 	// Add message handler
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {

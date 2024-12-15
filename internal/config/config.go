@@ -13,6 +13,9 @@ type Config struct {
 	SpotifyClientSecret string
 	SpotifyRedirectURI  string
 	BotPrefix           string
+	RedisAddr           string
+	RedisPassword       string
+	RedisDB             int
 }
 
 func LoadConfig() (*Config, error) {
@@ -25,8 +28,14 @@ func LoadConfig() (*Config, error) {
 	viper.BindEnv("SPOTIFY_CLIENT_ID")
 	viper.BindEnv("SPOTIFY_CLIENT_SECRET")
 	viper.BindEnv("SPOTIFY_REDIRECT_URI")
+	viper.BindEnv("RedisAddr")
+	viper.BindEnv("RedisPassword")
+	viper.BindEnv("RedisDB")
 
 	viper.SetDefault("BotPrefix", "!")
+	viper.SetDefault("RedisAddr", "localhost:6379")
+	viper.SetDefault("RedisPassword", "")
+	viper.SetDefault("RedisDB", 0)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -43,6 +52,9 @@ func LoadConfig() (*Config, error) {
 		SpotifyClientSecret: viper.GetString("SPOTIFY_CLIENT_SECRET"),
 		SpotifyRedirectURI:  viper.GetString("SPOTIFY_REDIRECT_URI"),
 		BotPrefix:           viper.GetString("BotPrefix"),
+		RedisAddr:           viper.GetString("RedisAddr"),
+		RedisPassword:       viper.GetString("RedisPassword"),
+		RedisDB:             viper.GetInt("RedisDB"),
 	}
 
 	return config, nil
