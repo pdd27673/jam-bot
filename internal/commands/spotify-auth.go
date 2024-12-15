@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"jam-bot/internal/spotify"
 
@@ -24,6 +25,28 @@ func (c *SpotifyAuthCommand) Description() string {
 }
 
 func (c *SpotifyAuthCommand) Execute(s *discordgo.Session, m *discordgo.MessageCreate, args []string) error {
+	ctx := context.Background()
+	isAuth, err := c.spotifyService.IsAuthenticated(ctx, m.Author.ID)
+	if err != nil {
+		return fmt.Errorf("failed to check authentication status: %w", err)
+	}
+
+	if isAuth {
+		// User is already authenticated
+		dm, err := s.UserChannelCreate(m.Author.ID)
+		if err != nil {
+			return fmt.Errorf("failed to create DM channel: %w", err)
+		}
+
+		_, err = s.ChannelMessageSend(dm.ID, "You are already authenticated with Spotify!")
+		if err != nil {
+			return fmt.Errorf("failed to send message: %w", err)
+		}
+
+		return nil
+	}
+
+	// User is not authenticated; proceed with auth flow
 	authURL := c.spotifyService.GetAuthURL(m.Author.ID)
 
 	dm, err := s.UserChannelCreate(m.Author.ID)

@@ -1,4 +1,3 @@
-// internal/spotify/handlers.go
 package spotify
 
 import (
@@ -12,14 +11,19 @@ func (s *Service) StartAuthServer(port int) error {
 }
 
 func (s *Service) callbackHandler(w http.ResponseWriter, r *http.Request) {
-	state := r.URL.Query().Get("state")
+	state := r.URL.Query().Get("state") // Discord user ID
 	code := r.URL.Query().Get("code")
+
+	if state == "" || code == "" {
+		http.Error(w, "Invalid callback parameters", http.StatusBadRequest)
+		return
+	}
 
 	if err := s.HandleCallback(r.Context(), state, code); err != nil {
 		http.Error(w, "Authentication failed", http.StatusInternalServerError)
 		return
 	}
 
-	// Close window after successful auth
+	// Notify user of successful authentication
 	fmt.Fprintf(w, "<script>window.close()</script>")
 }
