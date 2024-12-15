@@ -7,15 +7,18 @@ import (
 	"os/signal"
 	"syscall"
 
+	"jam-bot/internal/commands"
+	"jam-bot/internal/utils"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
 )
 
 var dg *discordgo.Session
+var cmdRegistry *commands.Registry
 
 // StartBot initializes the discord session and starts the bot
 func StartBot() error {
-	// load env variables from .env file
 	err := godotenv.Load("local.env")
 	if err != nil {
 		log.Println("[INFO] no .env file found. Proceeding with environment variables.")
@@ -26,28 +29,37 @@ func StartBot() error {
 		return fmt.Errorf("[ERROR] DISCORD_TOKEN not found in environment variables")
 	}
 
-	// create a new discord session
 	dg, err = discordgo.New("Bot " + token)
 	if err != nil {
 		return fmt.Errorf("[ERROR] error creating Discord session: %s", err)
 	}
 
-	// register messageCreate as a callback for the messageCreate events
-	dg.AddHandler(messageCreate)
+	// Initialize and register commands
+	cmdRegistry = commands.NewRegistry()
+	cmdRegistry.Register(&commands.PingCommand{})
+	cmdRegistry.Register(commands.NewHelpCommand(cmdRegistry))
 
-	// open a websocket connection to Discord and begin listening
+	// Add message handler
+	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
+		err := cmdRegistry.ExecuteCommand(s, m, utils.DISCORD_BOT_PREFIX)
+		if err != nil {
+			fmt.Println("[ERROR]", err)
+		}
+	})
+
+	// Open a websocket connection to Discord and begin listening
 	err = dg.Open()
 	if err != nil {
 		return fmt.Errorf("[ERROR] error opening connection to Discord: %s", err)
 	}
 	log.Println("[INFO] bot is now running. Press CTRL+C to exit.")
 
-	// wait until ctrl+c or other termination signal is received
+	// Wait until ctrl+c or other termination signal is received
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
 
-	// cleanly close down the Discord session
+	// Cleanly close down the Discord session
 	err = dg.Close()
 	if err != nil {
 		return fmt.Errorf("[ERROR] error closing connection to Discord: %s", err)
