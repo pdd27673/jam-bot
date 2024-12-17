@@ -2,4 +2,5 @@ BotPrefix: "!"
 RedisAddr: "localhost:6379"
 RedisPassword: ""
 RedisDB: 0
-Port: 8080 # default port
+Port: 8081 # default port
+ServerPort: 8080

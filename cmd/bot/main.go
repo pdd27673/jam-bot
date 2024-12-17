@@ -1,21 +1,26 @@
-// cmd/bot/main.go
 package main
 
 import (
-	"fmt"
 	"jam-bot/internal/bot"
-
-	"github.com/joho/godotenv"
+	"jam-bot/internal/config"
+	"jam-bot/internal/server"
+	"log"
 )
 
 func main() {
-	err := godotenv.Load("local.env")
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		fmt.Println("[INFO] No .env file found. Proceeding with environment variables.")
+		log.Fatalf("[ERROR] Failed to load config: %v", err)
 	}
 
-	err = bot.StartBot()
-	if err != nil {
-		fmt.Printf("[ERROR] error starting the bot: %s", err)
-	}
+	// Start the Discord bot in a separate goroutine
+	go func() {
+		err = bot.StartBot()
+		if err != nil {
+			log.Fatalf("[ERROR] Error starting the bot: %v", err)
+		}
+	}()
+
+	// Start the HTTP server
+	server.StartServer(cfg)
 }
