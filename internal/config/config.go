@@ -16,7 +16,6 @@ type Config struct {
 	RedisPassword       string
 	RedisDB             int
 	Port                int // Added Port field
-	ServerPort          int // Added Port field
 }
 
 func LoadConfig() (*Config, error) {
@@ -41,8 +40,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("RedisAddr", "localhost:6379")
 	viper.SetDefault("RedisPassword", "")
 	viper.SetDefault("RedisDB", 0)
-	viper.SetDefault("Port", 8081)       // Default port
-	viper.SetDefault("ServerPort", 8080) // Default port
+	viper.SetDefault("Port", 8080) // Default port
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -62,8 +60,7 @@ func LoadConfig() (*Config, error) {
 		RedisAddr:           viper.GetString("RedisAddr"),
 		RedisPassword:       viper.GetString("RedisPassword"),
 		RedisDB:             viper.GetInt("RedisDB"),
-		Port:                viper.GetInt("Port"),       // Load Port
-		ServerPort:          viper.GetInt("ServerPort"), // Load Port
+		Port:                viper.GetInt("Port"), // Load Port
 	}
 
 	return config, nil

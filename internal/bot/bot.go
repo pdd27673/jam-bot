@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"jam-bot/internal/commands"
 	"jam-bot/internal/config"
+	"jam-bot/internal/server"
 	"jam-bot/internal/spotify"
 	"log"
 	"os"
@@ -19,7 +20,7 @@ var dg *discordgo.Session
 var cmdRegistry *commands.Registry
 
 // sendDM sends a direct message to a user
-func sendDM(userID, message string) error {
+func SendDM(userID, message string) error {
 	channel, err := dg.UserChannelCreate(userID)
 	if err != nil {
 		return fmt.Errorf("failed to create DM channel: %w", err)
@@ -41,14 +42,10 @@ func StartBot() error {
 	}
 
 	// Initialize Spotify service with sendDM function
-	spotifyService := spotify.NewSpotifyService(cfg, sendDM)
+	spotifyService := spotify.NewSpotifyService(cfg, SendDM)
 
-	// Start auth server in a goroutine
-	go func() {
-		if err := spotifyService.StartAuthServer(); err != nil {
-			log.Fatalf("[ERROR] Auth server failed: %v", err)
-		}
-	}()
+	// Start the unified HTTP server
+	go server.StartServer(cfg, spotifyService)
 
 	dg, err = discordgo.New("Bot " + cfg.DiscordToken)
 	if err != nil {

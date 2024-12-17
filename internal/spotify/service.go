@@ -86,7 +86,7 @@ func (s *Service) StartAuthServer() error {
 
 // StartAuthServerWithPort starts the auth server on a specified port
 func (s *Service) StartAuthServerWithPort(port int) error {
-	http.HandleFunc("/callback", s.callbackHandler)
+	http.HandleFunc("/callback", s.CallbackHandler)
 	server := &http.Server{
 		Addr: fmt.Sprintf(":%d", port),
 	}
@@ -96,10 +96,9 @@ func (s *Service) StartAuthServerWithPort(port int) error {
 }
 
 // callbackHandler remains unchanged
-func (s *Service) callbackHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Service) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state") // Discord user ID
 	code := r.URL.Query().Get("code")
-	// channelID := r.URL.Query().Get("channel_id") // Optional: can pass ChannelID if needed
 
 	if state == "" || code == "" {
 		http.Error(w, "Invalid callback parameters", http.StatusBadRequest)
